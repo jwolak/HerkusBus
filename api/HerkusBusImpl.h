@@ -45,19 +45,46 @@
 
 #include "nlohmann/json.hpp"
 
+#include <boost/interprocess/managed_shared_memory.hpp>
+#include <boost/interprocess/containers/deque.hpp>
+#include <boost/interprocess/allocators/allocator.hpp>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/sync/interprocess_condition.hpp>
+#include <thread>
+#include <chrono>
+
 namespace Herkus
 {
+
     using json = nlohmann::json;
     using callback = std::function<void(const std::string &topic, const json &msg)>;
+
+    struct Message
+    {
+        std::string topic;
+        std::string payload;
+    };
+
+    using shared_mem_allocator = boost::interprocess::allocator<Message, boost::interprocess::managed_shared_memory::segment_manager>;
+    using shared_mem_message_deque = boost::interprocess::deque<Message, shared_mem_allocator>;
 
     class HerkusBusImpl
     {
     public:
-        HerkusBusImpl() = default;
-        ~HerkusBusImpl() = default;
+        HerkusBusImpl();
+        ~HerkusBusImpl();
 
         void publish(const std::string &topic, const json &message_payload);
         void subscribe(const std::string &topic, callback call_bck);
+
+    private:
+        boost::interprocess::managed_shared_memory shared_memory_segment_;
+        shared_mem_message_deque *message_queue_;
+        boost::interprocess::interprocess_mutex *ipc_mtx_;
+        boost::interprocess::interprocess_condition *ipc_condition_variable_;
+        std::thread bus_event_loop_thread_;
+        bool stop_listener_event_loop_ = false;
+        std::unordered_map<std::string, std::vector<callback>> subscribers_callbacks_ {};
     };
 
 } // namespac Herkus

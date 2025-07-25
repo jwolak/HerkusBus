@@ -69,9 +69,11 @@ namespace Herkus
 
     void HerkusBus::subscribe(const std::string &topic, callback cb)
     {
+        herkus_bus_impl_->subscribe(topic, std::move(cb));
     }
 
     void HerkusBus::publish(const std::string &topic, const json &msg)
     {
+        herkus_bus_impl_->publish(topic, msg);
     }
 } // namespace Herkus

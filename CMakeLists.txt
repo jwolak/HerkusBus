@@ -118,6 +118,7 @@ endif()
 #-------------------------------------------------------------------------------
 set (SOURCE_LIST
 	${HERKUS_BUS_SRC_DIR}/HerkusBus.cpp
+	${HERKUS_BUS_SRC_DIR}/HerkusBusImpl.cpp
 )
 message(STATUS "\n *********** Source list *********** \n" ${SOURCE_LIST})
 message(STATUS ${SOURCE_LIST})
