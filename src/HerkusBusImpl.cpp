@@ -47,13 +47,15 @@
 #include <thread>
 #include <chrono>
 
+#include <spdlog/spdlog.h>
+
 namespace Herkus
 {
     using namespace boost::interprocess;
 
     namespace
     {
-        const int32_t kSharedMemorySize = 65536;
+        const int32_t kSharedMemorySize = 65536; // 64 KB
         const std::string kSharedMemoryName = "HerkusBusSharedMemory";
         const std::string kMessageQueueName = "HerkusMessageQueue";
         const std::string kIpcMutexName = "HerkusIpcMutex";
