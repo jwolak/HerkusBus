@@ -5,6 +5,10 @@ cmake_minimum_required(VERSION 3.5)
 
 string(ASCII 27 Esc)
 set(Red "${Esc}[31m")
+set(Green "${Esc}[32m")
+set(Yellow "${Esc}[33m")
+set(Blue "${Esc}[34m")
+set(Magenta "${Esc}[35m")
 set(ColourReset "${Esc}[m")
 
 #-------------------------------------------------------------------------------
@@ -119,10 +123,15 @@ endif()
 set (SOURCE_LIST
 	${HERKUS_BUS_SRC_DIR}/HerkusBus.cpp
 	${HERKUS_BUS_SRC_DIR}/HerkusBusImpl.cpp
+	${HERKUS_BUS_SRC_DIR}/ConfigFileReadHandler.cpp
+	${HERKUS_BUS_SRC_DIR}/ConfigurationHandler.cpp
 )
-message(STATUS "\n *********** Source list *********** \n" ${SOURCE_LIST})
-message(STATUS ${SOURCE_LIST})
-message(STATUS "\n *********** End source list *********** \n")
+message(STATUS "\n *********** Source files list *********** \n")
+foreach(src_file IN LISTS SOURCE_LIST)
+    get_filename_component(file_name ${src_file} NAME)
+    message(STATUS "  ${Magenta} ${file_name} ${ColourReset}")
+endforeach()
+message(STATUS "\n *********** End source files list *********** \n")
 
 #-------------------------------------------------------------------------------
 #                                HerkusBus links
