@@ -1,7 +1,7 @@
 /*
- * HerkusBus.h
+ * HerkusBusImpl.h
  *
- *  Created on: 2023
+ *  Created on: 2025
  *      Author: Janusz Wolak
  */
 
@@ -39,8 +39,6 @@
 
 #pragma once
 
-#include "HerkusBusImpl.h"
-
 #include <string>
 #include <functional>
 #include <memory>
@@ -49,29 +47,17 @@
 
 namespace Herkus
 {
-
     using json = nlohmann::json;
     using callback = std::function<void(const std::string &topic, const json &msg)>;
 
-    class HerkusBus
+    class HerkusBusImpl
     {
     public:
-        static HerkusBus &getInstance();
-        HerkusBus(const HerkusBus &) = delete;
-        HerkusBus(HerkusBus &&) = delete;
-        HerkusBus &operator=(const HerkusBus &) = delete;
-        HerkusBus &operator=(HerkusBus &&) = delete;
+        HerkusBusImpl() = default;
+        ~HerkusBusImpl() = default;
 
         void publish(const std::string &topic, const json &message_payload);
         void subscribe(const std::string &topic, callback call_bck);
-
-    protected:
-        // for testing purposes only
-        explicit HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl);
-
-    private:
-        HerkusBus();
-        std::unique_ptr<HerkusBusImpl> herkus_bus_impl_;
     };
 
-} // namespace Herkus
+} // namespac Herkus
