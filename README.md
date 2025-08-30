@@ -1,13 +1,11 @@
 # HerkusBus
-Message data bus
-
-# HerkusBus
-**Experimental interprocess message bus library based on shared memory **
+**Experimental library with implementation of interprocess message queue bus based on interprocess shared memory from Boost**
 
 ## Features
 
-- message payload based on JSON
-- shred memory
+- message queue in shared memeory
+- message payload in JSON
+- publish–subscribe pattern
 - powered by Boost
 
 ## Building for source
@@ -18,10 +16,8 @@ cmake CMakeLists.txt
 make
 ```
 ## Install
-```sh
+```
 $ sudo make install
-or
-# make install
 ```
 ## Example:
 
@@ -29,7 +25,7 @@ Include "HerkusBus.h" to source code:
 ```sh
 See: examples/HerkusBusExample.cpp
 ```
-```sh
+```
 
 #include <chrono>
 #include <iostream>
@@ -160,5 +156,5 @@ Subscribe to: example_topic
 ## License
 
 **BSD 3-Clause License**
-<br/>Copyright (c) 2025, Janusz Wolak
-<br/>All rights reserved.
+<br/>Copylefts 2025, Janusz Wolak
+<br/>No rights reserved
