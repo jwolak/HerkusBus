@@ -62,7 +62,8 @@ const std::string kIpcMutexName = "HerkusIpcMutex";
 const std::string kIpcConditionVariableName = "HerkusIpcConditionVariable";
 }  // namespace
 
-HerkusBusImpl::HerkusBusImpl() : bus_event_loop_thread_{}, stop_listener_event_loop_{false}, subscribers_callbacks_{}, subscribers_mutex_{} {
+HerkusBusImpl::HerkusBusImpl()
+    : bus_event_loop_thread_{}, stop_listener_event_loop_{false}, subscribers_callbacks_{}, subscribers_mutex_{}, stop_listener_event_loop_mutex_{} {
   spdlog::set_level(spdlog::level::debug);
   boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
   spdlog::debug("Shared memory segment removed [{0}:{1}]", __FILENAME__, __LINE__);
@@ -115,13 +116,17 @@ HerkusBusImpl::HerkusBusImpl() : bus_event_loop_thread_{}, stop_listener_event_l
 }
 
 HerkusBusImpl::~HerkusBusImpl() {
+  std::lock_guard<std::mutex> loop_lock(stop_listener_event_loop_mutex_);
   stop_listener_event_loop_ = true;
-  scoped_lock<interprocess_mutex> lock(*ipc_mtx_);
   spdlog::debug("Notify bus event loop to be stopped [{0}:{1}]", __FILENAME__, __LINE__);
   ipc_condition_variable_->notify_all();
+  scoped_lock<interprocess_mutex> lock(*ipc_mtx_);
   if (bus_event_loop_thread_.joinable()) {
     bus_event_loop_thread_.join();
   }
+
+  boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
+  spdlog::debug("Shared memory segment removed [{0}:{1}]", __FILENAME__, __LINE__);
 }
 
 void HerkusBusImpl::Publish(const std::string& topic, const json& message_payload) {

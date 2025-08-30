@@ -79,6 +79,7 @@ class HerkusBusImpl {
   boost::interprocess::interprocess_mutex* ipc_mtx_;
   boost::interprocess::interprocess_condition* ipc_condition_variable_;
   std::thread bus_event_loop_thread_;
+  std::mutex stop_listener_event_loop_mutex_;
   bool stop_listener_event_loop_;
   std::unordered_map<std::string, std::vector<subscriber_callback>> subscribers_callbacks_;
   std::mutex subscribers_mutex_;
