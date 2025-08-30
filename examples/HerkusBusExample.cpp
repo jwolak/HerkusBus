@@ -24,7 +24,7 @@ int main() {
 
   std::cout << "Subscribe to: " << kTopicName << std::endl;
   bus.Subscribe(kTopicName,
-                [](const std::string& topic, const Herkus::json& msg) { std::cout << "Received on [" << topic << "]: " << msg.dump() << std::endl; });
+                [](const std::string& topic, const Herkus::json& msg) { std::cout << "[Example] Received on [" << topic << "]: " << msg.dump() << std::endl; });
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   std::thread t1(PublishLoop, kTopicName, kThreadId_1);
