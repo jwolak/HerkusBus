@@ -51,7 +51,7 @@ namespace Herkus
 {
 
     using json = nlohmann::json;
-    using callback = std::function<void(const std::string &topic, const json &msg)>;
+    using subscriber_callback = std::function<void(const std::string &topic, const json &msg)>;
 
     class HerkusBus
     {
@@ -62,8 +62,8 @@ namespace Herkus
         HerkusBus &operator=(const HerkusBus &) = delete;
         HerkusBus &operator=(HerkusBus &&) = delete;
 
-        void publish(const std::string &topic, const json &message_payload);
-        void subscribe(const std::string &topic, callback call_bck);
+        void Publish(const std::string &topic, const json &message_payload);
+        void Subscribe(const std::string &topic, subscriber_callback sub_callback);
 
     protected:
         // for testing purposes only

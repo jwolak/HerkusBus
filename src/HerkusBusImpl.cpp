@@ -62,35 +62,53 @@ namespace Herkus
         const std::string kMessageQueueName = "HerkusMessageQueue";
         const std::string kIpcMutexName = "HerkusIpcMutex";
         const std::string kIpcConditionVariableName = "HerkusIpcConditionVariable";
+
+        const char kLogFilepath[] = "logs/herkusbus.log";
+        const char kLoggerName[] = "HerkusBusImpl";
+        const int32_t kOneMbyteInBytes = 1048576;  // 1MB = 1048576 bytes
+        const int32_t kMaxLogFileSize = 5; // 5 MB
+        const int32_t kNumberOfRotatingFiles = 3;
     }
 
     HerkusBusImpl::HerkusBusImpl() : shared_memory_segment_{open_or_create, kSharedMemoryName.c_str(), kSharedMemorySize},
                                      message_queue_{shared_memory_segment_.find_or_construct<shared_mem_message_deque>(kMessageQueueName.c_str())(shared_mem_allocator(shared_memory_segment_.get_segment_manager()))},
                                      ipc_mtx_{shared_memory_segment_.find_or_construct<interprocess_mutex>(kIpcMutexName.c_str())()},
-                                     ipc_condition_variable_{shared_memory_segment_.find_or_construct<interprocess_condition>(kIpcConditionVariableName.c_str())()}
+                                     ipc_condition_variable_{shared_memory_segment_.find_or_construct<interprocess_condition>(kIpcConditionVariableName.c_str())()},
+                                     bus_event_loop_thread_ {},
+                                     stop_listener_event_loop_ { false },
+                                     subscribers_callbacks_ {},
+                                     rotating_logger_mt_ { spdlog::rotating_logger_mt(kLoggerName, kLogFilepath, kOneMbyteInBytes * kMaxLogFileSize, kNumberOfRotatingFiles)}
     {
-        boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
         rotating_logger_mt_->set_level(spdlog::level::debug);    
         spdlog::set_default_logger(rotating_logger_mt_);
 
-        spdlog::debug("[HerkusBusImpl] Test", __FILENAME__, __LINE__);
+        boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
+        spdlog::debug("(Previous)Shared memory segment removed", __FILENAME__, __LINE__);
 
+        spdlog::debug("Create bus even loop thread...", __FILENAME__, __LINE__);
         bus_event_loop_thread_ = std::thread([this]() {
             while (!stop_listener_event_loop_) {
                 scoped_lock<interprocess_mutex> lock(*ipc_mtx_);
+                spdlog::debug("Event loop checks if message queue is empty...", __FILENAME__, __LINE__);
                 if(message_queue_->empty()) {
+                    spdlog::debug("No message in queue", __FILENAME__, __LINE__);
                     ipc_condition_variable_->wait(lock);
                     if(!stop_listener_event_loop_) {
                         break;
                     }
                 }
+                spdlog::debug("Message queue is not empty...", __FILENAME__, __LINE__);
                 while (!message_queue_->empty()) {
-                    spdlog::debug("[HerkusBusImpl] Test", __FILENAME__, __LINE__);
+                    spdlog::debug("New message in queue", __FILENAME__, __LINE__);
                     Message msg = message_queue_->front();
+                    spdlog::debug("Message taken from queue", __FILENAME__, __LINE__);
                     message_queue_->pop_front();
                     lock.unlock();
 
+                    spdlog::debug("Message parsing...", __FILENAME__, __LINE__);
                     auto parsed_msg = json::parse(msg.payload);
+
+                    spdlog::debug("Call callbacks for all subscribers...", __FILENAME__, __LINE__);
                     auto it = subscribers_callbacks_.find(msg.topic);
                     if (it != subscribers_callbacks_.end()) {
                         for (const auto &callback : it->second) {
@@ -113,7 +131,7 @@ namespace Herkus
         }
     }
 
-    void HerkusBusImpl::publish(const std::string &topic, const json &message_payload)
+    void HerkusBusImpl::Publish(const std::string &topic, const json &message_payload)
     {
         std::string payload = message_payload.dump();
         scoped_lock<interprocess_mutex> lock(*ipc_mtx_);
@@ -121,8 +139,8 @@ namespace Herkus
         ipc_condition_variable_->notify_one();
     }
 
-    void HerkusBusImpl::subscribe(const std::string &topic, callback call_bck)
+    void HerkusBusImpl::Subscribe(const std::string &topic, subscriber_callback sub_callback)
     {
-        subscribers_callbacks_[topic].push_back(std::move(call_bck));
+        subscribers_callbacks_[topic].push_back(std::move(sub_callback));
     }
 } // namespace Herkus

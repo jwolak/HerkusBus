@@ -59,21 +59,17 @@ namespace Herkus
     }
 
     // for testing purposes only
-    HerkusBus::HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl) : herkus_bus_impl_(std::move(herkus_bus_impl))
+    HerkusBus::HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl) : herkus_bus_impl_(std::move(herkus_bus_impl)) {}
+
+    HerkusBus::HerkusBus() : herkus_bus_impl_(std::make_unique<HerkusBusImpl>()) {}
+
+    void HerkusBus::Subscribe(const std::string &topic, subscriber_callback sub_callback)
     {
+        herkus_bus_impl_->Subscribe(topic, std::move(sub_callback));
     }
 
-    HerkusBus::HerkusBus() : herkus_bus_impl_(std::make_unique<HerkusBusImpl>())
+    void HerkusBus::Publish(const std::string &topic, const json &msg)
     {
-    }
-
-    void HerkusBus::subscribe(const std::string &topic, callback cb)
-    {
-        herkus_bus_impl_->subscribe(topic, std::move(cb));
-    }
-
-    void HerkusBus::publish(const std::string &topic, const json &msg)
-    {
-        herkus_bus_impl_->publish(topic, msg);
+        herkus_bus_impl_->Publish(topic, msg);
     }
 } // namespace Herkus
