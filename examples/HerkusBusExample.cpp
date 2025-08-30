@@ -6,7 +6,7 @@
 
 void PublishLoop(const std::string& topic, int threadId) {
   auto& bus = Herkus::HerkusBus::getInstance();
-  for (int i = 0; i < 10; ++i) {
+  for (int i = 0; i < 3; ++i) {
     Herkus::json payload;
     payload["ThreadId"] = threadId;
     payload["MessageId"] = i;
