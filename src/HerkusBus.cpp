@@ -39,37 +39,32 @@
 
 #include "HerkusBus.h"
 
-#include <thread>
+#include <boost/interprocess/allocators/allocator.hpp>
+#include <boost/interprocess/containers/deque.hpp>
+#include <boost/interprocess/managed_shared_memory.hpp>
+#include <boost/interprocess/sync/interprocess_condition.hpp>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <chrono>
 #include <memory>
+#include <thread>
 
-#include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/containers/deque.hpp>
-#include <boost/interprocess/allocators/allocator.hpp>
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
-#include <boost/interprocess/sync/interprocess_condition.hpp>
+namespace Herkus {
 
-namespace Herkus
-{
+HerkusBus& HerkusBus::getInstance() {
+  static HerkusBus instance;
+  return instance;
+}
 
-    HerkusBus &HerkusBus::getInstance()
-    {
-        static HerkusBus instance;
-        return instance;
-    }
+// for testing purposes only
+HerkusBus::HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl) : herkus_bus_impl_(std::move(herkus_bus_impl)) {}
 
-    // for testing purposes only
-    HerkusBus::HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl) : herkus_bus_impl_(std::move(herkus_bus_impl)) {}
+HerkusBus::HerkusBus() : herkus_bus_impl_(std::make_unique<HerkusBusImpl>()) {}
 
-    HerkusBus::HerkusBus() : herkus_bus_impl_(std::make_unique<HerkusBusImpl>()) {}
+void HerkusBus::Subscribe(const std::string& topic, subscriber_callback sub_callback) {
+  herkus_bus_impl_->Subscribe(topic, std::move(sub_callback));
+}
 
-    void HerkusBus::Subscribe(const std::string &topic, subscriber_callback sub_callback)
-    {
-        herkus_bus_impl_->Subscribe(topic, std::move(sub_callback));
-    }
-
-    void HerkusBus::Publish(const std::string &topic, const json &msg)
-    {
-        herkus_bus_impl_->Publish(topic, msg);
-    }
-} // namespace Herkus
+void HerkusBus::Publish(const std::string& topic, const json& msg) {
+  herkus_bus_impl_->Publish(topic, msg);
+}
+}  // namespace Herkus

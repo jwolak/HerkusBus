@@ -39,39 +39,36 @@
 
 #pragma once
 
-#include "HerkusBusImpl.h"
-
-#include <string>
 #include <functional>
 #include <memory>
+#include <string>
 
+#include "HerkusBusImpl.h"
 #include "nlohmann/json.hpp"
 
-namespace Herkus
-{
+namespace Herkus {
 
-    using json = nlohmann::json;
-    using subscriber_callback = std::function<void(const std::string &topic, const json &msg)>;
+using json = nlohmann::json;
+using subscriber_callback = std::function<void(const std::string& topic, const json& msg)>;
 
-    class HerkusBus
-    {
-    public:
-        static HerkusBus &getInstance();
-        HerkusBus(const HerkusBus &) = delete;
-        HerkusBus(HerkusBus &&) = delete;
-        HerkusBus &operator=(const HerkusBus &) = delete;
-        HerkusBus &operator=(HerkusBus &&) = delete;
+class HerkusBus {
+ public:
+  static HerkusBus& getInstance();
+  HerkusBus(const HerkusBus&) = delete;
+  HerkusBus(HerkusBus&&) = delete;
+  HerkusBus& operator=(const HerkusBus&) = delete;
+  HerkusBus& operator=(HerkusBus&&) = delete;
 
-        void Publish(const std::string &topic, const json &message_payload);
-        void Subscribe(const std::string &topic, subscriber_callback sub_callback);
+  void Publish(const std::string& topic, const json& message_payload);
+  void Subscribe(const std::string& topic, subscriber_callback sub_callback);
 
-    protected:
-        // for testing purposes only
-        explicit HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl);
+ protected:
+  // for testing purposes only
+  explicit HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl);
 
-    private:
-        HerkusBus();
-        std::unique_ptr<HerkusBusImpl> herkus_bus_impl_;
-    };
+ private:
+  HerkusBus();
+  std::unique_ptr<HerkusBusImpl> herkus_bus_impl_;
+};
 
-} // namespace Herkus
+}  // namespace Herkus
