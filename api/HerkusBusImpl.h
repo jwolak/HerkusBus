@@ -85,6 +85,7 @@ namespace Herkus
         std::thread bus_event_loop_thread_;
         bool stop_listener_event_loop_;
         std::unordered_map<std::string, std::vector<subscriber_callback>> subscribers_callbacks_;
+        std::mutex subscribers_mutex_;
     };
 
 } // namespac Herkus

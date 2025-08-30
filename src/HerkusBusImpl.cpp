@@ -70,17 +70,18 @@ namespace Herkus
         const int32_t kNumberOfRotatingFiles = 3;
     }
 
-    HerkusBusImpl::HerkusBusImpl() : shared_memory_segment_{open_or_create, kSharedMemoryName.c_str(), kSharedMemorySize},
-                                     message_queue_{shared_memory_segment_.find_or_construct<shared_mem_message_deque>(kMessageQueueName.c_str())(shared_mem_allocator(shared_memory_segment_.get_segment_manager()))},
-                                     ipc_mtx_{shared_memory_segment_.find_or_construct<interprocess_mutex>(kIpcMutexName.c_str())()},
-                                     ipc_condition_variable_{shared_memory_segment_.find_or_construct<interprocess_condition>(kIpcConditionVariableName.c_str())()},
-                                     bus_event_loop_thread_ {},
+    HerkusBusImpl::HerkusBusImpl() : bus_event_loop_thread_ {},
                                      stop_listener_event_loop_ { false },
-                                     subscribers_callbacks_ {}
+                                     subscribers_callbacks_ {},
+                                     subscribers_mutex_ {}
     {
         spdlog::set_level(spdlog::level::debug); 
         boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
-        spdlog::debug("(Previous)Shared memory segment removed", __FILENAME__, __LINE__);
+        spdlog::debug("Shared memory segment removed", __FILENAME__, __LINE__);
+        shared_memory_segment_ = managed_shared_memory{open_or_create, kSharedMemoryName.c_str(), kSharedMemorySize};
+        message_queue_ = shared_memory_segment_.find_or_construct<shared_mem_message_deque>(kMessageQueueName.c_str())(shared_mem_allocator(shared_memory_segment_.get_segment_manager()));
+        ipc_mtx_ = shared_memory_segment_.find_or_construct<interprocess_mutex>(kIpcMutexName.c_str())();
+        ipc_condition_variable_ = shared_memory_segment_.find_or_construct<interprocess_condition>(kIpcConditionVariableName.c_str())();
 
         spdlog::debug("Create bus even loop thread...", __FILENAME__, __LINE__);
         bus_event_loop_thread_ = std::thread([this]() {
@@ -91,7 +92,7 @@ namespace Herkus
                     spdlog::debug("No message in queue", __FILENAME__, __LINE__);
                     spdlog::debug("Waiting...", __FILENAME__, __LINE__);
                     ipc_condition_variable_->wait(lock);
-                    if(!stop_listener_event_loop_) {
+                    if(stop_listener_event_loop_) {
                         break;
                     }
                 }
@@ -107,7 +108,10 @@ namespace Herkus
                     auto parsed_msg = json::parse(msg.payload);
 
                     spdlog::debug("Call callbacks for all subscribers...", __FILENAME__, __LINE__);
-                    auto it = subscribers_callbacks_.find(msg.topic);
+                    auto it = [&] {
+                                        std::lock_guard<std::mutex> lock(subscribers_mutex_);
+                                        return subscribers_callbacks_.find(msg.topic);
+                                  }();
                     if (it != subscribers_callbacks_.end()) {
                         for (const auto &callback : it->second) {
                             callback(msg.topic, parsed_msg);    
@@ -121,7 +125,7 @@ namespace Herkus
 
     HerkusBusImpl::~HerkusBusImpl()
     {
-        stop_listener_event_loop_ = false;
+        stop_listener_event_loop_ = true;
         scoped_lock<interprocess_mutex> lock(*ipc_mtx_);
         ipc_condition_variable_->notify_all();
         if (bus_event_loop_thread_.joinable()) {
@@ -142,6 +146,7 @@ namespace Herkus
     void HerkusBusImpl::Subscribe(const std::string &topic, subscriber_callback sub_callback)
     {
         spdlog::debug("Subscribe on topic: {0}", topic, __FILENAME__, __LINE__);
+        std::lock_guard<std::mutex> lock(subscribers_mutex_);
         subscribers_callbacks_[topic].push_back(std::move(sub_callback));
     }
 } // namespace Herkus
