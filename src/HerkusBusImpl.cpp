@@ -76,12 +76,9 @@ namespace Herkus
                                      ipc_condition_variable_{shared_memory_segment_.find_or_construct<interprocess_condition>(kIpcConditionVariableName.c_str())()},
                                      bus_event_loop_thread_ {},
                                      stop_listener_event_loop_ { false },
-                                     subscribers_callbacks_ {},
-                                     rotating_logger_mt_ { spdlog::rotating_logger_mt(kLoggerName, kLogFilepath, kOneMbyteInBytes * kMaxLogFileSize, kNumberOfRotatingFiles)}
+                                     subscribers_callbacks_ {}
     {
-        rotating_logger_mt_->set_level(spdlog::level::debug);    
-        spdlog::set_default_logger(rotating_logger_mt_);
-
+        spdlog::set_level(spdlog::level::debug); 
         boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
         spdlog::debug("(Previous)Shared memory segment removed", __FILENAME__, __LINE__);
 
@@ -92,6 +89,7 @@ namespace Herkus
                 spdlog::debug("Event loop checks if message queue is empty...", __FILENAME__, __LINE__);
                 if(message_queue_->empty()) {
                     spdlog::debug("No message in queue", __FILENAME__, __LINE__);
+                    spdlog::debug("Waiting...", __FILENAME__, __LINE__);
                     ipc_condition_variable_->wait(lock);
                     if(!stop_listener_event_loop_) {
                         break;
@@ -133,14 +131,17 @@ namespace Herkus
 
     void HerkusBusImpl::Publish(const std::string &topic, const json &message_payload)
     {
+        spdlog::debug("Publish message on topic: {0}", topic, __FILENAME__, __LINE__);
         std::string payload = message_payload.dump();
         scoped_lock<interprocess_mutex> lock(*ipc_mtx_);
+        spdlog::debug("Add message to message queue", __FILENAME__, __LINE__);
         message_queue_->emplace_back(Message{topic, payload});
         ipc_condition_variable_->notify_one();
     }
 
     void HerkusBusImpl::Subscribe(const std::string &topic, subscriber_callback sub_callback)
     {
+        spdlog::debug("Subscribe on topic: {0}", topic, __FILENAME__, __LINE__);
         subscribers_callbacks_[topic].push_back(std::move(sub_callback));
     }
 } // namespace Herkus
