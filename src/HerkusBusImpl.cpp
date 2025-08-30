@@ -116,11 +116,13 @@ HerkusBusImpl::HerkusBusImpl()
 }
 
 HerkusBusImpl::~HerkusBusImpl() {
-  std::lock_guard<std::mutex> loop_lock(stop_listener_event_loop_mutex_);
-  stop_listener_event_loop_ = true;
-  spdlog::debug("Notify bus event loop to be stopped [{0}:{1}]", __FILENAME__, __LINE__);
-  ipc_condition_variable_->notify_all();
-  scoped_lock<interprocess_mutex> lock(*ipc_mtx_);
+  {
+    std::lock_guard<std::mutex> loop_lock(stop_listener_event_loop_mutex_);
+    stop_listener_event_loop_ = true;
+    spdlog::debug("Notify bus event loop to be stopped [{0}:{1}]", __FILENAME__, __LINE__);
+    ipc_condition_variable_->notify_all();
+  }
+
   if (bus_event_loop_thread_.joinable()) {
     bus_event_loop_thread_.join();
   }
