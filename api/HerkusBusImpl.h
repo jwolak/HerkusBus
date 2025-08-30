@@ -44,6 +44,7 @@
 #include <memory>
 
 #include "nlohmann/json.hpp"
+#include "spdlog/sinks/rotating_file_sink.h"
 
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/interprocess/containers/deque.hpp>
@@ -55,6 +56,13 @@
 
 namespace Herkus
 {
+    namespace {
+        const char kLogFilepath[] = "logs/herkusbus.log";
+        const char kLoggerName[] = "herkusbus";
+        const int32_t kOneMbyteInBytes = 1048576;  // 1MB = 1048576 bytes
+        const int32_t kMaxLogFileSize = 5; // 5 MB
+        const int32_t kNumberOfRotatingFiles = 3;
+    }  // namespace
 
     using json = nlohmann::json;
     using callback = std::function<void(const std::string &topic, const json &msg)>;
@@ -85,6 +93,7 @@ namespace Herkus
         std::thread bus_event_loop_thread_;
         bool stop_listener_event_loop_ = false;
         std::unordered_map<std::string, std::vector<callback>> subscribers_callbacks_ {};
+        std::shared_ptr<spdlog::logger> rotating_logger_mt_ { spdlog::rotating_logger_mt(kLoggerName, kLogFilepath, kOneMbyteInBytes * kMaxLogFileSize, kNumberOfRotatingFiles) };
     };
 
 } // namespac Herkus

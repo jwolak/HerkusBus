@@ -12,13 +12,12 @@ set(Magenta "${Esc}[35m")
 set(ColourReset "${Esc}[m")
 
 #-------------------------------------------------------------------------------
-#                                HerkusBus settings
+#                                Project settings
 #-------------------------------------------------------------------------------
 set (HERKUS_BUS_VERSION 0.0.1)
-project(HerkusBus VERSION ${HERKUS_BUS_VERSION})
+project(HerkusBusExample VERSION ${HERKUS_BUS_VERSION})
 
-set (OUTPUT_BINARY_NAME HerkusBus)
-message(STATUS "Version: " ${HERKUS_BUS_VERSION})
+set (OUTPUT_BINARY_NAME HerkusBusExample-1)
 message(STATUS "Binary name: " ${OUTPUT_BINARY_NAME})
 
 message(STATUS "Processing CMakeLists.txt for: " ${PROJECT_NAME} " " ${VERSION})
@@ -53,17 +52,8 @@ endif()
 include_directories(${Boost_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
-#                                HerkusBus options
+#                                Project options
 #-------------------------------------------------------------------------------
-option(HERKUS_BUS_TESTS         "Build tests"           OFF)
-option(HERKUS_BUS_EXAMPLES      "Build examples"        ON)
-option(HERKUS_BUS_BUILD_SHARED  "Build shared lib"      ON)
-option(HERKUS_BUS_BUILD_STATIC  "Build static lib"      OFF)
-
-if(HERKUS_BUS_TESTS)
-    message(STATUS "Build test enabled")
-endif()
-
 # Define the destination for the binary object
 set (BUILD_DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
@@ -87,25 +77,19 @@ endif()
 message(STATUS "Linking Logger library from: " ${LOGGER_LIBS_PATH})
 
 #------------------------------------------------------------------------------------------
-#                                HerkusBus api
+#                                Project include
 #------------------------------------------------------------------------------------------
-set(HERKUS_BUS_API ${CMAKE_CURRENT_SOURCE_DIR}/api)
-message(STATUS "Set api directory: " ${HERKUS_BUS_API})
-
-#------------------------------------------------------------------------------------------
-#                                HerkusBus include
-#------------------------------------------------------------------------------------------
-set(HERKUS_BUS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(HERKUS_BUS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../api)
 message(STATUS "Set include directory: " ${HERKUS_BUS_INCLUDE})
 
 #-------------------------------------------------------------------------------
-#                                HerkusBus source directory
+#                                Project source directory
 #-------------------------------------------------------------------------------
-set (HERKUS_BUS_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-message(STATUS "Set source directory: " ${HERKUS_BUS_SRC_DIR})
+set (HERKUS_BUS_EXAMPLE_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/)
+message(STATUS "Set source directory: " ${HERKUS_BUS_EXAMPLE_SRC_DIR})
 
 #-------------------------------------------------------------------------------
-#                                HerkusBus include
+#                                Project include
 #-------------------------------------------------------------------------------
 if(CPU_ARCH STREQUAL "x64")
  	include_directories(
@@ -124,12 +108,12 @@ else()
 endif()
 
 #-------------------------------------------------------------------------------
-#                                HerkusBus source
+#                                Project source
 #-------------------------------------------------------------------------------
 set (SOURCE_LIST
-	${HERKUS_BUS_SRC_DIR}/HerkusBus.cpp
-	${HERKUS_BUS_SRC_DIR}/HerkusBusImpl.cpp
+	${HERKUS_BUS_EXAMPLE_SRC_DIR}/HerkusBusExample.cpp
 )
+
 message(STATUS "\n *********** Source files list *********** \n")
 foreach(src_file IN LISTS SOURCE_LIST)
     get_filename_component(file_name ${src_file} NAME)
@@ -138,64 +122,16 @@ endforeach()
 message(STATUS "\n *********** End source files list *********** \n")
 
 #-------------------------------------------------------------------------------
-#                                HerkusBus links
+#                                Project links
 #-------------------------------------------------------------------------------
+set(HERKUS_BUS_LIB_DIR ${PROJECT_SOURCE_DIR}/../build/libHerkusBus.so)
+
 link_directories(${LOGGER_LIBS_PATH})
 message(STATUS "link_directories: " ${LOGGER_LIBS_PATH})
 
 
 #-------------------------------------------------------------------------------
-#                                HerkusBus target
+#                                Project target
 #-------------------------------------------------------------------------------
-
-if (HERKUS_BUS_BUILD_SHARED)
-	include_directories( ${OUTPUT_BINARY_NAME} PRIVATE  ${HERKUS_BUS_INCLUDE} ${HERKUS_BUS_API})
-	add_library( ${OUTPUT_BINARY_NAME} SHARED ${SOURCE_LIST})
-	target_compile_definitions( ${OUTPUT_BINARY_NAME} PUBLIC HERKUS_BUS_SHARED_LIB)
-endif()
-
-if (HERKUS_BUS_BUILD_STATIC)
-	include_directories( ${OUTPUT_BINARY_NAME} PRIVATE  ${HERKUS_BUS_INCLUDE} ${HERKUS_BUS_API})
-	add_library( ${OUTPUT_BINARY_NAME} STATIC ${SOURCE_LIST})
-endif()
-
-#-------------------------------------------------------------------------------
-
-if(CPU_ARCH STREQUAL "x64")
-	target_link_libraries(${OUTPUT_BINARY_NAME} PUBLIC ${LOGGER_LIBS_PATH})
-endif()
-
-#-------------------------------------------------------------------------------
-#                                HerkusBus target directories
-#-------------------------------------------------------------------------------
-install(DIRECTORY DESTINATION ${BUILD_DESTINATION}/bin)
-
-if(CPU_ARCH STREQUAL "x64")
-	install (TARGETS ${OUTPUT_BINARY_NAME}
-		RUNTIME DESTINATION ${BUILD_DESTINATION}/bin
-	)
-endif()
-
-#-------------------------------------------------------------------------------
-#                                HerkusBus tests
-#-------------------------------------------------------------------------------
-if(HERKUS_BUS_TESTS)
-    add_subdirectory(tests)
-    message(STATUS "Tests subdirectory added")
-endif(HERKUS_BUS_TESTS)
-
-#------------------------------------------------------------------------------------------
-#                                Project examples
-#------------------------------------------------------------------------------------------
-if(HERKUS_BUS_EXAMPLES)
-	add_subdirectory(examples)
-endif(HERKUS_BUS_EXAMPLES)
-
-#------------------------------------------------------------------------------------------
-#                                Project install
-#------------------------------------------------------------------------------------------
-install(FILES ${HERKUS_BUS_API}/HerkusBus.h
-        DESTINATION include)
-
-install(TARGETS ${OUTPUT_BINARY_NAME} DESTINATION lib)
-install(FILES HerkusBusConfig.cmake DESTINATION lib/cmake/HerkusBus)
+add_executable(${PROJECT_NAME} ${SOURCE_LIST})
+target_link_libraries(${PROJECT_NAME} ${HERKUS_BUS_LIB_DIR} ${LOGGER_LIBS_PATH} pthread rt)

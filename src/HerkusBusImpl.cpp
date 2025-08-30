@@ -49,6 +49,8 @@
 
 #include <spdlog/spdlog.h>
 
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+
 namespace Herkus
 {
     using namespace boost::interprocess;
@@ -67,6 +69,12 @@ namespace Herkus
                                      ipc_mtx_{shared_memory_segment_.find_or_construct<interprocess_mutex>(kIpcMutexName.c_str())()},
                                      ipc_condition_variable_{shared_memory_segment_.find_or_construct<interprocess_condition>(kIpcConditionVariableName.c_str())()}
     {
+        boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
+        rotating_logger_mt_->set_level(spdlog::level::debug);    
+        spdlog::set_default_logger(rotating_logger_mt_);
+
+        spdlog::debug("[HerkusBusImpl] Test", __FILENAME__, __LINE__);
+
         bus_event_loop_thread_ = std::thread([this]() {
             while (!stop_listener_event_loop_) {
                 scoped_lock<interprocess_mutex> lock(*ipc_mtx_);
@@ -77,6 +85,7 @@ namespace Herkus
                     }
                 }
                 while (!message_queue_->empty()) {
+                    spdlog::debug("[HerkusBusImpl] Test", __FILENAME__, __LINE__);
                     Message msg = message_queue_->front();
                     message_queue_->pop_front();
                     lock.unlock();
