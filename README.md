@@ -291,6 +291,14 @@ Messages    Small (100B)    Medium (1KB)    Large (10KB)
 - **Left panel**: Message publishing time (ms) for different batch sizes grouped by payload size
 - **Right panel**: Throughput (messages/sec) - demonstrates how throughput scales with larger batches
 
+#### System Resource Usage
+
+![System CPU and Memory Usage](perf_test/system_metrics.png)
+
+*The graph above shows real-time system metrics during performance tests:*
+- **Top panel**: CPU usage (%) - Peak CPU usage during message processing
+- **Bottom panel**: Memory usage (MB) - Both used and available memory trends
+
 ### Performance Analysis
 
 **Key Observations:**
