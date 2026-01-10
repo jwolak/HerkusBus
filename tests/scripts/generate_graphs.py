@@ -370,6 +370,16 @@ class PerformanceGraphGenerator:
         if metrics_df is not None:
             self.generate_system_metrics_graph(metrics_df)
         
+        # Copy graphs to docs/performance for GitHub visibility
+        docs_dir = Path(self.perf_test_dir).parent / "docs" / "performance"
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        
+        for graph_file in self.perf_test_dir.glob("*.png"):
+            import shutil
+            dest_file = docs_dir / graph_file.name
+            shutil.copy2(graph_file, dest_file)
+            print(f"  Copied to docs: {dest_file.name}")
+        
         print(f"\n✓ All graphs and reports generated successfully!")
         print(f"  View the report: {self.perf_test_dir}/report.html\n")
 

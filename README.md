@@ -285,7 +285,7 @@ Messages    Small (100B)    Medium (1KB)    Large (10KB)
 
 #### Performance Visualization
 
-![Message Publishing Performance Graph](perf_test/timing_performance.png)
+![Message Publishing Performance Graph](docs/performance/timing_performance.png)
 
 *The graph above shows two key metrics:*
 - **Left panel**: Message publishing time (ms) for different batch sizes grouped by payload size
@@ -293,7 +293,7 @@ Messages    Small (100B)    Medium (1KB)    Large (10KB)
 
 #### System Resource Usage
 
-![System CPU and Memory Usage](perf_test/system_metrics.png)
+![System CPU and Memory Usage](docs/performance/system_metrics.png)
 
 *The graph above shows real-time system metrics during performance tests:*
 - **Top panel**: CPU usage (%) - Peak CPU usage during message processing
