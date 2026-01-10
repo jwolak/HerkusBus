@@ -7,17 +7,73 @@
 - message payload in JSON
 - publish–subscribe pattern
 - powered by Boost
+- comprehensive unit tests with Google Test
+- automated build system with statistics tracking
 
-## Building for source
-```sh
+## Building from source
+
+### Quick Start with Build Script
+
+The project includes an automated build script that simplifies the build process:
+
+```bash
+# Build Debug version (with -O0 -g3 optimization)
+./scripts/build.sh debug
+
+# Build Release version (with -O3 optimization)
+./scripts/build.sh release
+
+# Build both Debug and Release, then run unit tests
+./scripts/build.sh all
+
+# Clean build directory
+./scripts/build.sh clean
+```
+
+### Build Script Features
+
+- **Automated dependency checking**: Verifies CMake, Make, g++, Boost, and Google Test
+- **Standardized directory structure**: Builds to `build/debug/` and `build/release/`
+- **Build statistics**: Displays build time, binary size, and warning count
+- **Tabular summary**: Compares Debug and Release builds side-by-side
+- **Unit test execution**: Automatically runs tests when using `all` option
+
+### Build Output Structure
+
+```
+build/
+├── debug/
+│   ├── lib/libHerkusBus.so      # Debug library
+│   └── bin/HerkusBusExample     # Example application
+└── release/
+    ├── lib/libHerkusBus.so      # Release library
+    ├── bin/HerkusBusExample     # Example application
+    └── bin/HerkusBusTests       # Unit tests (with 'all' option)
+```
+
+### Dependencies
+
+Before building, ensure the following dependencies are installed:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential cmake libboost-all-dev libgtest-dev
+```
+
+### Manual Build (Alternative)
+
+If you prefer to build manually without the script:
+
+```bash
 mkdir build
 cd build
-cmake CMakeLists.txt
+cmake -DCMAKE_BUILD_TYPE=Release -DCPU_ARCH=x64 ..
 make
 ```
+
 ## Install
-```
-$ sudo make install
+```bash
+sudo make install
 ```
 ## Example:
 

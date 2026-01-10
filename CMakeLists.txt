@@ -27,6 +27,11 @@ message(STATUS "CMAKE_SOURCE_DIR:    " ${CMAKE_SOURCE_DIR})
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Set library output directory
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 set(COMPILER_FLAGS_DEBUG "-O0 -g3 -Wall -fmessage-length=0 -Wno-psabi -pthread -lrt")
 set(COMPILER_FLAGS_RELEASE "-O0 -Wall -fmessage-length=0 -Wno-psabi -pthread -lrt")
 
@@ -180,8 +185,19 @@ endif()
 #                                HerkusBus tests
 #-------------------------------------------------------------------------------
 if(HERKUS_BUS_TESTS)
+    enable_testing()
     add_subdirectory(tests)
     message(STATUS "Tests subdirectory added")
+    
+    # Register the test executable with CTest
+    add_test(
+        NAME HerkusBusTests
+        COMMAND ${CMAKE_BINARY_DIR}/bin/HerkusBusTests
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    )
+    set_tests_properties(HerkusBusTests PROPERTIES
+        TIMEOUT 30
+    )
 endif(HERKUS_BUS_TESTS)
 
 #------------------------------------------------------------------------------------------
