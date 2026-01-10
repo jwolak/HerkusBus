@@ -209,7 +209,168 @@ Subscribe to: example_topic
 [2025-08-30 18:35:47.643] [debug] Shared memory segment removed [HerkusBusImpl.cpp:131]
 
 ```
-## License
+
+## Performance Testing
+
+HerkusBus includes a comprehensive performance testing framework that measures message throughput, latency, and system resource utilization.
+
+### Test Framework Overview
+
+The performance testing suite consists of:
+
+1. **Dedicated C++ Performance Test Executable** (`HerkusBusPerformanceTests`)
+   - Measures message publishing throughput with realistic JSON payloads
+   - Tests variable message counts and payload sizes
+   - Outputs timing data and performance metrics
+
+2. **System Metrics Collection** (CPU, Memory)
+   - Monitors system resource usage during tests
+   - Parses `/proc/stat` and `/proc/meminfo` for accurate metrics
+   - Lightweight monitoring with minimal overhead
+
+3. **Automated Report Generation** (Python)
+   - Generates timing performance graphs
+   - Creates system resource usage visualizations
+   - Produces HTML report with summary statistics
+
+### Running Performance Tests
+
+```bash
+# From project root
+bash tests/scripts/perf_test.sh
+
+# Or run directly
+./build/release/bin/HerkusBusPerformanceTests
+
+# Generate graphs from existing results
+python3 tests/scripts/generate_graphs.py perf_test
+```
+
+### Test Configuration
+
+The performance tests measure message publishing throughput with the following parameters:
+
+| Parameter | Values |
+|-----------|--------|
+| **Message Counts** | 100, 500, 1000, 1200 |
+| **Payload Sizes** | Small (100B), Medium (1KB), Large (10KB) |
+| **Payload Type** | Realistic JSON structures with nested objects |
+| **Test Runs** | Multiple test sequences for each configuration |
+
+### Performance Results
+
+Measured on test system with comprehensive JSON payloads containing nested objects and mixed data types:
+
+#### Message Publishing Time (milliseconds)
+
+```
+Messages    Small (100B)    Medium (1KB)    Large (10KB)
+---------------------------------------------------------
+100              112.79          115.39         147.29
+500              165.95          171.32         339.96
+1000             223.38          233.32         587.71
+1200             246.61          259.28         691.81
+```
+
+#### Throughput (Messages per Second)
+
+```
+Messages    Small (100B)    Medium (1KB)    Large (10KB)
+---------------------------------------------------------
+100              887            867             679
+500             3013           2918            1471
+1000            4477           4286            1702
+1200            4866           4628            1735
+```
+
+#### Performance Visualization
+
+![Message Publishing Performance Graph](perf_test/timing_performance.png)
+
+*The graph above shows two key metrics:*
+- **Left panel**: Message publishing time (ms) for different batch sizes grouped by payload size
+- **Right panel**: Throughput (messages/sec) - demonstrates how throughput scales with larger batches
+
+### Performance Analysis
+
+**Key Observations:**
+
+1. **Throughput Scalability**: Message throughput increases significantly as batch size increases:
+   - 100 messages: ~800-900 msg/sec
+   - 500 messages: ~2900-3000 msg/sec
+   - 1000+ messages: ~4200-4800 msg/sec
+
+2. **Payload Size Impact**: Larger payloads (10KB) show reduced throughput:
+   - Small payloads: Consistent ~4600 msg/sec at 1200 messages
+   - Large payloads: Reduced to ~1700 msg/sec due to message serialization and queue processing
+
+3. **Shared Memory Architecture**: The 64KB shared memory buffer limits concurrent message capacity:
+   - Maximum sustainable batch size: ~1200 messages
+   - Adaptive delays prevent buffer overflow
+   - Messages are processed asynchronously by event loop
+
+### Output Files
+
+The performance test framework generates the following results in the `perf_test/` directory:
+
+```
+perf_test/
+├── perf_results.csv           # Raw timing data in CSV format
+├── summary.txt                # Human-readable summary
+├── timing_performance.png      # Message timing visualization
+├── system_metrics.png         # CPU/Memory usage graphs (if collected)
+└── report.html                # Interactive HTML report
+```
+
+### Performance Testing Architecture
+
+```
+┌─────────────────────────────────────┐
+│  perf_test.sh (Orchestrator)       │
+│  - Monitors system metrics          │
+│  - Runs performance executable      │
+│  - Triggers graph generation        │
+└────────┬──────────────────────────┬─┘
+         │                          │
+    ┌────▼─────────┐         ┌─────▼──────────┐
+    │ C++ Test Exe │         │ System Monitor │
+    │ - 100 msgs   │         │ - CPU stats    │
+    │ - 500 msgs   │         │ - Memory info  │
+    │ - 1000 msgs  │         │ - Timing data  │
+    │ - 1200 msgs  │         └────────────────┘
+    └────┬─────────┘
+         │
+    ┌────▼──────────────────┐
+    │ CSV Files & Results   │
+    │ - perf_results.csv    │
+    │ - system_metrics.csv  │
+    │ - summary.txt         │
+    └────┬──────────────────┘
+         │
+    ┌────▼────────────────────────┐
+    │ Python Graph Generator      │
+    │ - Timing graphs             │
+    │ - System metrics graphs     │
+    │ - HTML report               │
+    └─────────────────────────────┘
+```
+
+### Limitations & Notes
+
+- **Shared Memory Size**: 64KB buffer limits concurrent messages
+- **Test Duration**: Includes adaptive delays to prevent queue overflow
+- **Timing Overhead**: Times include message serialization, queue operations, and callback dispatch
+- **JSON Payloads**: Realistic nested structures (not minimal payloads)
+
+### Performance Tips
+
+For optimal performance with HerkusBus:
+
+1. **Batch Processing**: Send messages in batches rather than individually
+2. **Message Size**: Use smaller payloads for higher throughput
+3. **Queue Management**: Allow time between message bursts for asynchronous processing
+4. **Monitoring**: Use the built-in monitoring to track system impact
+
 
 **BSD 3-Clause License**
 <br/>Copylefts 2025, Janusz Wolak

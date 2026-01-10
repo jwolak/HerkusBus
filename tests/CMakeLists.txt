@@ -36,4 +36,38 @@ target_include_directories(HerkusBusTests
         ${CMAKE_CURRENT_SOURCE_DIR}/../ThirdParty/logger/include
 )
 
+#-------------------------------------------------------------------------------
+#                     Performance Tests CMakeLists.txt
+#-------------------------------------------------------------------------------
+
+# Set performance test source files
+set(PERF_TEST_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/HerkusBusPerformanceTests.cpp
+)
+
+# Create performance test executable
+add_executable(HerkusBusPerformanceTests ${PERF_TEST_SOURCES})
+
+# Set output directory for performance test executable
+set_target_properties(HerkusBusPerformanceTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Link libraries
+target_link_libraries(HerkusBusPerformanceTests 
+    PUBLIC 
+        HerkusBus
+        pthread
+)
+
+# Include directories for performance tests
+target_include_directories(HerkusBusPerformanceTests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../api
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../ThirdParty/json/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../ThirdParty/logger/include
+)
+
 message(STATUS "Tests configuration completed")
+message(STATUS "Performance tests configuration completed")
