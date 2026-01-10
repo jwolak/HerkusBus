@@ -168,7 +168,7 @@ build_config() {
     
     # Capture build output to analyze warnings
     local build_log="${build_path}/build.log"
-    make 2>&1 | tee "${build_log}"
+    make -j$(($(nproc) * 2)) 2>&1 | tee "${build_log}"
     
     if [ ${PIPESTATUS[0]} -ne 0 ]; then
         print_error "Build failed for ${config}"
@@ -270,7 +270,7 @@ build_with_tests() {
     
     # Build
     print_info "Building with tests..."
-    make 2>&1
+    make -j$(($(nproc) * 2)) 2>&1
     
     if [ $? -ne 0 ]; then
         print_error "Build with tests failed"

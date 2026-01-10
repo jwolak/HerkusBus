@@ -70,11 +70,11 @@ TEST_F(HerkusBusTest, GetInstanceReturnsSingletonInstance) {
 
 // Test: getInstance returns valid instance
 TEST_F(HerkusBusTest, GetInstanceReturnsValidInstance) {
-  HerkusBus& instance = HerkusBus::getInstance();
-  
   // Should not throw
   EXPECT_NO_THROW({
+    HerkusBus& instance = HerkusBus::getInstance();
     HerkusBus& ref = HerkusBus::getInstance();
+    EXPECT_EQ(&instance, &ref);  // Singleton should return same instance
   });
 }
 

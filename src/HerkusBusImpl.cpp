@@ -63,7 +63,7 @@ const std::string kIpcConditionVariableName = "HerkusIpcConditionVariable";
 }  // namespace
 
 HerkusBusImpl::HerkusBusImpl()
-    : bus_event_loop_thread_{}, stop_listener_event_loop_{false}, subscribers_callbacks_{}, subscribers_mutex_{}, stop_listener_event_loop_mutex_{} {
+    : bus_event_loop_thread_{}, stop_listener_event_loop_mutex_{}, stop_listener_event_loop_{false}, subscribers_callbacks_{}, subscribers_mutex_{} {
   spdlog::set_level(spdlog::level::debug);
   boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
   spdlog::debug("Shared memory segment removed [{0}:{1}]", __FILENAME__, __LINE__);
