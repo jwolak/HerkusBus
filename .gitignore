@@ -43,4 +43,6 @@
 #build
 build
 
-.vscode
+# Performance test results
+perf_test
+
