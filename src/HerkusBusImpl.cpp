@@ -41,6 +41,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <boost/interprocess/allocators/allocator.hpp>
 #include <boost/interprocess/containers/deque.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
@@ -60,10 +61,19 @@ const std::string kSharedMemoryName = "HerkusBusSharedMemory";
 const std::string kMessageQueueName = "HerkusMessageQueue";
 const std::string kIpcMutexName = "HerkusIpcMutex";
 const std::string kIpcConditionVariableName = "HerkusIpcConditionVariable";
+const unsigned int kDefaultWorkerThreads = 0;
 }  // namespace
 
 HerkusBusImpl::HerkusBusImpl()
-    : bus_event_loop_thread_{}, stop_listener_event_loop_mutex_{}, stop_listener_event_loop_{false}, subscribers_callbacks_{}, subscribers_mutex_{} {
+    : bus_event_loop_thread_{},
+      stop_listener_event_loop_{false},
+      worker_threads_{},
+      task_queue_{},
+      task_queue_mutex_{},
+      task_queue_cv_{},
+      stop_worker_threads_{false},
+      subscribers_callbacks_{},
+      subscribers_mutex_{} {
   spdlog::set_level(spdlog::level::debug);
   boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
   spdlog::debug("Shared memory segment removed [{0}:{1}]", __FILENAME__, __LINE__);
@@ -73,16 +83,37 @@ HerkusBusImpl::HerkusBusImpl()
   ipc_mtx_ = shared_memory_segment_.find_or_construct<interprocess_mutex>(kIpcMutexName.c_str())();
   ipc_condition_variable_ = shared_memory_segment_.find_or_construct<interprocess_condition>(kIpcConditionVariableName.c_str())();
 
+  const unsigned int worker_count = kDefaultWorkerThreads == 0 ? std::max(1u, std::thread::hardware_concurrency()) : std::max(1u, kDefaultWorkerThreads);
+  spdlog::debug("Create worker thread pool (size={0})... [{1}:{2}]", worker_count, __FILENAME__, __LINE__);
+  worker_threads_.reserve(worker_count);
+  for (unsigned int i = 0; i < worker_count; ++i) {
+    worker_threads_.emplace_back([this]() {
+      while (true) {
+        std::function<void()> task;
+        {
+          std::unique_lock<std::mutex> lock(task_queue_mutex_);
+          task_queue_cv_.wait(lock, [this]() { return stop_worker_threads_.load() || !task_queue_.empty(); });
+          if (stop_worker_threads_.load() && task_queue_.empty()) {
+            return;
+          }
+          task = std::move(task_queue_.front());
+          task_queue_.pop();
+        }
+        task();
+      }
+    });
+  }
+
   spdlog::debug("Create bus event loop thread... [{0}:{1}]", __FILENAME__, __LINE__);
   bus_event_loop_thread_ = std::thread([this]() {
-    while (!stop_listener_event_loop_) {
+    while (!stop_listener_event_loop_.load()) {
       scoped_lock<interprocess_mutex> lock(*ipc_mtx_);
       spdlog::debug("Event loop checks if message queue is empty... [{0}:{1}]", __FILENAME__, __LINE__);
       if (message_queue_->empty()) {
         spdlog::debug("No message in queue [{0}:{1}]", __FILENAME__, __LINE__);
         spdlog::debug("Waiting... [{0}:{1}]", __FILENAME__, __LINE__);
         ipc_condition_variable_->wait(lock);
-        if (stop_listener_event_loop_) {
+        if (stop_listener_event_loop_.load()) {
           spdlog::debug("Event loop stopped [{0}:{1}]", __FILENAME__, __LINE__);
           break;
         }
@@ -100,14 +131,16 @@ HerkusBusImpl::HerkusBusImpl()
         auto parsed_msg = json::parse(msg.payload);
 
         spdlog::debug("Call callbacks for all subscribers subscribed on topic: [{0}] [{1}:{2}]", msg.topic, __FILENAME__, __LINE__);
-        auto it = [&] {
+        const auto callbacks = [&] {
           std::lock_guard<std::mutex> lock(subscribers_mutex_);
-          return subscribers_callbacks_.find(msg.topic);
-        }();
-        if (it != subscribers_callbacks_.end()) {
-          for (const auto& callback : it->second) {
-            callback(msg.topic, parsed_msg);
+          auto it = subscribers_callbacks_.find(msg.topic);
+          if (it == subscribers_callbacks_.end()) {
+            return std::vector<subscriber_callback>{};
           }
+          return it->second;
+        }();
+        for (const auto& callback : callbacks) {
+          EnqueueTask([callback, topic = msg.topic, parsed_msg]() mutable { callback(topic, parsed_msg); });
         }
         lock.lock();
       }
@@ -116,19 +149,35 @@ HerkusBusImpl::HerkusBusImpl()
 }
 
 HerkusBusImpl::~HerkusBusImpl() {
-  {
-    std::lock_guard<std::mutex> loop_lock(stop_listener_event_loop_mutex_);
-    stop_listener_event_loop_ = true;
-    spdlog::debug("Notify bus event loop to be stopped [{0}:{1}]", __FILENAME__, __LINE__);
-    ipc_condition_variable_->notify_all();
-  }
+  stop_listener_event_loop_.store(true);
+  spdlog::debug("Notify bus event loop to be stopped [{0}:{1}]", __FILENAME__, __LINE__);
+  ipc_condition_variable_->notify_all();
 
   if (bus_event_loop_thread_.joinable()) {
     bus_event_loop_thread_.join();
   }
 
+  stop_worker_threads_.store(true);
+  task_queue_cv_.notify_all();
+  for (auto& worker : worker_threads_) {
+    if (worker.joinable()) {
+      worker.join();
+    }
+  }
+
   boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
   spdlog::debug("Shared memory segment removed [{0}:{1}]", __FILENAME__, __LINE__);
+}
+
+void HerkusBusImpl::EnqueueTask(std::function<void()> task) {
+  {
+    std::lock_guard<std::mutex> lock(task_queue_mutex_);
+    if (stop_worker_threads_.load()) {
+      return;
+    }
+    task_queue_.push(std::move(task));
+  }
+  task_queue_cv_.notify_one();
 }
 
 void HerkusBusImpl::Publish(const std::string& topic, const json& message_payload) {
