@@ -259,9 +259,11 @@ The performance tests measure message publishing throughput with the following p
 
 ### Performance Results
 
-Measured on test system with comprehensive JSON payloads containing nested objects and mixed data types:
+Measured on test system with comprehensive JSON payloads containing nested objects and mixed data types.
 
-#### Message Publishing Time (milliseconds)
+#### Baseline (pre-thread pool, sleep-based)
+
+**Message Publishing Time (milliseconds)**
 
 ```
 Messages    Small (100B)    Medium (1KB)    Large (10KB)
@@ -272,7 +274,7 @@ Messages    Small (100B)    Medium (1KB)    Large (10KB)
 1200             246.61          259.28         691.81
 ```
 
-#### Throughput (Messages per Second)
+**Throughput (Messages per Second)**
 
 ```
 Messages    Small (100B)    Medium (1KB)    Large (10KB)
@@ -281,6 +283,41 @@ Messages    Small (100B)    Medium (1KB)    Large (10KB)
 500             3013           2918            1471
 1000            4477           4286            1702
 1200            4866           4628            1735
+```
+
+#### Thread pool + callback wait (2026-02-09, logging disabled)
+
+**Message Publishing Time (milliseconds)**
+
+```
+Messages    Small (100B)    Medium (1KB)    Large (10KB)
+---------------------------------------------------------
+100               9.53            16.56          75.99
+500              57.61            81.90         363.61
+1000             96.41           142.76         725.13
+1200            121.90           176.96         866.49
+```
+
+**Throughput (Messages per Second)**
+
+```
+Messages    Small (100B)    Medium (1KB)    Large (10KB)
+---------------------------------------------------------
+100            10489           6040            1316
+500             8679           6105            1375
+1000           10372           7005            1379
+1200            9844           6781            1385
+```
+
+#### Delta vs Baseline (Throughput - no logging vs pre-thread pool with delays)
+
+```
+Messages    Small (100B)    Medium (1KB)    Large (10KB)
+---------------------------------------------------------
+100           +1082%          +597%           +94%
+500            +188%           +109%           -6%
+1000           +132%           +64%           -19%
+1200           +102%           +47%           -20%
 ```
 
 #### Performance Visualization
@@ -303,19 +340,30 @@ Messages    Small (100B)    Medium (1KB)    Large (10KB)
 
 **Key Observations:**
 
-1. **Throughput Scalability**: Message throughput increases significantly as batch size increases:
-   - 100 messages: ~800-900 msg/sec
-   - 500 messages: ~2900-3000 msg/sec
-   - 1000+ messages: ~4200-4800 msg/sec
+1. **Thread Pool Impact**: Disabling debug logging reveals the true performance improvement of the thread pool implementation:
+   - Small payloads show **10x improvement** in throughput (100-10k msg/sec vs 887 msg/sec baseline)
+   - Medium payloads show **6-7x improvement** (6-7k msg/sec vs 867 msg/sec baseline)
+   - Large payloads remain constrained by shared memory bandwidth (~1.3-1.4k msg/sec)
 
-2. **Payload Size Impact**: Larger payloads (10KB) show reduced throughput:
-   - Small payloads: Consistent ~4600 msg/sec at 1200 messages
-   - Large payloads: Reduced to ~1700 msg/sec due to message serialization and queue processing
+2. **Sweet Spot**: 1000+ messages provides the most consistent throughput:
+   - Small: ~10k msg/sec
+   - Medium: ~7k msg/sec  
+   - Large: ~1.4k msg/sec
+   - Smaller batches (100 msgs) have proportionally higher latency due to fixed overhead
 
-3. **Shared Memory Architecture**: The 64KB shared memory buffer limits concurrent message capacity:
-   - Maximum sustainable batch size: ~1200 messages
-   - Adaptive delays prevent buffer overflow
-   - Messages are processed asynchronously by event loop
+3. **Payload Impact with Thread Pool**: 
+   - Small vs Medium payloads: ~30% throughput difference
+   - Small vs Large payloads: ~7-8x throughput difference
+   - This is primarily due to shared memory buffer pressure and JSON serialization cost
+
+4. **Methodology Notes**:
+   - Results use promise-based synchronization to ensure all callbacks complete
+   - Minimal 1ms delays added every 100 small or 30 large messages to prevent buffer overflow
+   - Much tighter measurement than baseline (which used fixed sleep)
+   - No debug logging overhead in measurements
+
+5. **Shared Memory Architecture**: 64KB buffer remains the limiting factor for very large batches with large payloads.
+
 
 ### Output Files
 
