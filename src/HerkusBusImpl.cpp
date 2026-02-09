@@ -74,7 +74,7 @@ HerkusBusImpl::HerkusBusImpl()
       stop_worker_threads_{false},
       subscribers_callbacks_{},
       subscribers_mutex_{} {
-  spdlog::set_level(spdlog::level::debug);
+  spdlog::set_level(spdlog::level::off);
   boost::interprocess::shared_memory_object::remove(kSharedMemoryName.c_str());
   spdlog::debug("Shared memory segment removed [{0}:{1}]", __FILENAME__, __LINE__);
   shared_memory_segment_ = managed_shared_memory{open_or_create, kSharedMemoryName.c_str(), kSharedMemorySize};
