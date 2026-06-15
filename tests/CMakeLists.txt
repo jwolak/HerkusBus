@@ -2,12 +2,25 @@
 #                                Tests CMakeLists.txt
 #-------------------------------------------------------------------------------
 
-# Find GTest package
-find_package(GTest REQUIRED)
+# Prefer system GTest/GMock, otherwise fetch with FetchContent
+include(FetchContent)
+find_package(GTest QUIET)
+if(NOT GTest_FOUND)
+    message(STATUS "System GTest not found; fetching googletest...")
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/release-1.14.0.zip
+    )
+    FetchContent_MakeAvailable(googletest)
+    set(GTEST_LIBRARIES gmock_main)
+else()
+    set(GTEST_LIBRARIES GTest::gmock_main)
+endif()
 
 # Set test source files
 set(TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/HerkusBusTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/HerkusBusMockTest.cpp
 )
 
 # Create test executable
@@ -22,8 +35,7 @@ set_target_properties(HerkusBusTests PROPERTIES
 target_link_libraries(HerkusBusTests 
     PUBLIC 
         HerkusBus
-        GTest::GTest
-        GTest::Main
+        ${GTEST_LIBRARIES}
         pthread
 )
 

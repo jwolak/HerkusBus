@@ -44,6 +44,7 @@
 #include <string>
 
 #include "HerkusBusImpl.h"
+#include "IHerkusBus.h"
 #include "nlohmann/json.hpp"
 
 namespace Herkus {
@@ -51,9 +52,11 @@ namespace Herkus {
 using json = nlohmann::json;
 using subscriber_callback = std::function<void(const std::string& topic, const json& msg)>;
 
-class HerkusBus {
+class HerkusBus : public IHerkusBus {
  public:
   static HerkusBus& getInstance();
+  static IHerkusBus& Bus();
+  static void SetGlobalBus(std::unique_ptr<IHerkusBus> bus);
   HerkusBus(const HerkusBus&) = delete;
   HerkusBus(HerkusBus&&) = delete;
   HerkusBus& operator=(const HerkusBus&) = delete;
@@ -66,8 +69,10 @@ class HerkusBus {
   // for testing purposes only
   explicit HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl);
 
- private:
+ public:
   HerkusBus();
+
+ private:
   std::unique_ptr<HerkusBusImpl> herkus_bus_impl_;
 };
 
