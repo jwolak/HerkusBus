@@ -22,7 +22,7 @@ TEST(HerkusBusMockTest, PublishAndSubscribeWithGMock) {
     if (saved_cb) saved_cb(topic, msg);
   }));
 
-  IHerkusBus& bus = HerkusBus::Bus();
+  IHerkusBus& bus = HerkusBus::GetBusInterface();
 
   bool called = false;
   bus.Subscribe("topic1", [&called](const std::string& topic, const json& msg) { called = true; });

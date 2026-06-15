@@ -55,7 +55,7 @@ using subscriber_callback = std::function<void(const std::string& topic, const j
 class HerkusBus : public IHerkusBus {
  public:
   static HerkusBus& getInstance();
-  static IHerkusBus& Bus();
+  static IHerkusBus& GetBusInterface();
   static void SetGlobalBus(std::unique_ptr<IHerkusBus> bus);
   HerkusBus(const HerkusBus&) = delete;
   HerkusBus(HerkusBus&&) = delete;

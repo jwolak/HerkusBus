@@ -67,7 +67,7 @@ HerkusBus& HerkusBus::getInstance() {
   return instance;
 }
 
-IHerkusBus& HerkusBus::Bus() {
+IHerkusBus& HerkusBus::GetBusInterface() {
   if (!g_global_bus_instance) {
     g_global_bus_instance = std::make_unique<DefaultBusAdapter>();
   }
