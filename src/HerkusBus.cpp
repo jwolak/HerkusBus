@@ -48,11 +48,34 @@
 #include <memory>
 #include <thread>
 
+#include "IHerkusBus.h"
+
 namespace Herkus {
+
+namespace {
+std::unique_ptr<IHerkusBus> g_global_bus_instance;
+
+class DefaultBusAdapter : public IHerkusBus {
+ public:
+  void Publish(const std::string& topic, const json& message_payload) override { HerkusBus::getInstance().Publish(topic, message_payload); }
+  void Subscribe(const std::string& topic, subscriber_callback sub_callback) override { HerkusBus::getInstance().Subscribe(topic, std::move(sub_callback)); }
+};
+}  // namespace
 
 HerkusBus& HerkusBus::getInstance() {
   static HerkusBus instance;
   return instance;
+}
+
+IHerkusBus& HerkusBus::GetBusInterface() {
+  if (!g_global_bus_instance) {
+    g_global_bus_instance = std::make_unique<DefaultBusAdapter>();
+  }
+  return *g_global_bus_instance;
+}
+
+void HerkusBus::SetGlobalBus(std::unique_ptr<IHerkusBus> bus) {
+  g_global_bus_instance = std::move(bus);
 }
 
 // for testing purposes only

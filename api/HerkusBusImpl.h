@@ -56,6 +56,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "IHerkusBus.h"
 #include "nlohmann/json.hpp"
 #include "spdlog/sinks/rotating_file_sink.h"
 
@@ -71,7 +72,7 @@ struct Message {
 using shared_mem_allocator = boost::interprocess::allocator<Message, boost::interprocess::managed_shared_memory::segment_manager>;
 using shared_mem_message_deque = boost::interprocess::deque<Message, shared_mem_allocator>;
 
-class HerkusBusImpl {
+class HerkusBusImpl : public IHerkusBus {
  public:
   HerkusBusImpl();
   ~HerkusBusImpl();
