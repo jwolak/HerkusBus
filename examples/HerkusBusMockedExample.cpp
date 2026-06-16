@@ -50,6 +50,7 @@ using namespace testing;
 int main() {
   StrictMock<HerkusBuxMockedExample::HerkusBusMock>* mock_bus_mock = new StrictMock<HerkusBuxMockedExample::HerkusBusMock>();
   HerkusBuxMockedExample::ClassWithMockedBus class_with_mocked_bus(*mock_bus_mock);
+  HerkusBuxMockedExample::ClassWithHerkusBus class_with_not_mocked_herkus_bus;
 
   EXPECT_CALL(*mock_bus_mock, Publish("topic1", Herkus::json::object({{"key", "value"}})));
   EXPECT_CALL(*mock_bus_mock, Subscribe("topic2", _));
