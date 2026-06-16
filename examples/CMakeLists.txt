@@ -51,6 +51,42 @@ if(NOT Boost_FOUND)
 endif()
 include_directories(${Boost_INCLUDE_DIRS})
 
+# Prefer system GTest/GMock, otherwise fetch with FetchContent
+include(FetchContent)
+find_package(GTest QUIET)
+if(NOT GTest_FOUND)
+	message(STATUS "System GTest not found; fetching googletest...")
+	FetchContent_Declare(
+		googletest
+		URL https://github.com/google/googletest/archive/refs/tags/release-1.14.0.zip
+	)
+	FetchContent_MakeAvailable(googletest)
+	set(GTEST_LIBRARIES gmock_main)
+else()
+	# Some system installations provide imported targets (GTest::gmock_main),
+	# others provide plain library names (gmock_main). Prefer the imported
+	# target if it exists, otherwise fall back to the plain name.
+	if(TARGET GTest::gmock_main)
+		set(GTEST_LIBRARIES GTest::gmock_main)
+	else()
+		set(GTEST_LIBRARIES gmock_main)
+	endif()
+endif()
+
+# Derive a broader set of link libs to ensure all gtest/gmock symbols are
+# available. Prefer imported targets when present, otherwise fall back to
+# linking both gmock and gtest libraries.
+if(TARGET GTest::gmock_main)
+	set(GTEST_LINK_LIBS GTest::gmock_main)
+elseif(TARGET gmock_main)
+	set(GTEST_LINK_LIBS gmock_main)
+elseif(TARGET gmock)
+	set(GTEST_LINK_LIBS gmock gtest)
+else()
+	# plain library names for system installs
+	set(GTEST_LINK_LIBS gmock gtest)
+endif()
+
 #-------------------------------------------------------------------------------
 #                                Project options
 #-------------------------------------------------------------------------------
@@ -134,3 +170,15 @@ message(STATUS "link_directories: " ${LOGGER_LIBS_PATH})
 #-------------------------------------------------------------------------------
 add_executable(${PROJECT_NAME} ${SOURCE_LIST})
 target_link_libraries(${PROJECT_NAME} HerkusBus ${LOGGER_LIBS_PATH} pthread rt)
+
+add_executable(HerkusBusMockedExample.x64 ${HERKUS_BUS_EXAMPLE_SRC_DIR}/HerkusBusMockedExample.cpp)
+target_link_libraries(HerkusBusMockedExample.x64 HerkusBus ${GTEST_LINK_LIBS} ${LOGGER_LIBS_PATH} pthread rt)
+
+# Include directories for the mocked example
+target_include_directories(HerkusBusMockedExample.x64
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../api
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../ThirdParty/json/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../ThirdParty/logger/include
+)
