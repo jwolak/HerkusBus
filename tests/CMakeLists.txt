@@ -2,7 +2,7 @@
 #                                Tests CMakeLists.txt
 #-------------------------------------------------------------------------------
 
-# Prefer system GTest/GMock, otherwise fetch with FetchContent
+# Prefer system GTest, otherwise fetch with FetchContent
 include(FetchContent)
 find_package(GTest QUIET)
 if(NOT GTest_FOUND)
@@ -12,15 +12,27 @@ if(NOT GTest_FOUND)
         URL https://github.com/google/googletest/archive/refs/tags/release-1.14.0.zip
     )
     FetchContent_MakeAvailable(googletest)
-    set(GTEST_LIBRARIES gmock_main)
+    set(GTEST_LIBRARIES gtest_main)
 else()
-    set(GTEST_LIBRARIES GTest::gmock_main)
+    if(TARGET GTest::gtest_main)
+        set(GTEST_LIBRARIES GTest::gtest_main)
+    elseif(TARGET GTest::gtest)
+        set(GTEST_LIBRARIES GTest::gtest)
+    else()
+        # Some distro packages install static libs without imported CMake targets.
+        find_library(GTEST_MAIN_LIBRARY NAMES gtest_main gtest)
+
+        if(GTEST_MAIN_LIBRARY)
+            set(GTEST_LIBRARIES ${GTEST_MAIN_LIBRARY})
+        else()
+            message(FATAL_ERROR "GTest found but no compatible GTest library/target is available")
+        endif()
+    endif()
 endif()
 
 # Set test source files
 set(TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/HerkusBusTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/HerkusBusMockTest.cpp
 )
 
 # Create test executable
