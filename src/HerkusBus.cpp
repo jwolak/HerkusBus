@@ -67,17 +67,6 @@ HerkusBus& HerkusBus::getInstance() {
   return instance;
 }
 
-IHerkusBus& HerkusBus::GetBusInterface() {
-  if (!g_global_bus_instance) {
-    g_global_bus_instance = std::make_unique<DefaultBusAdapter>();
-  }
-  return *g_global_bus_instance;
-}
-
-void HerkusBus::SetGlobalBus(std::unique_ptr<IHerkusBus> bus) {
-  g_global_bus_instance = std::move(bus);
-}
-
 // for testing purposes only
 HerkusBus::HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl) : herkus_bus_impl_(std::move(herkus_bus_impl)) {}
 
