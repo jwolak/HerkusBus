@@ -19,7 +19,7 @@
 #
 ################################################################################
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -36,6 +36,9 @@ SCRIPTS_DIR="${PROJECT_ROOT}/scripts"
 
 # Architecture (fixed to x64)
 CPU_ARCH="x64"
+
+# Build parallelism (override with BUILD_JOBS env var)
+PARALLEL_JOBS="${BUILD_JOBS:-$(nproc)}"
 
 # Compiler flags
 CFLAGS_DEBUG="-O0 -g3 -Wall -fmessage-length=0 -Wno-psabi -pthread -lrt"
@@ -67,6 +70,7 @@ print_warning() {
 
 # Check if dependencies are installed
 check_dependencies() {
+    local require_tests=${1:-0}
     print_info "Checking dependencies..."
     
     local missing_deps=0
@@ -95,20 +99,22 @@ check_dependencies() {
         print_success "g++ found: $(g++ --version | head -n1)"
     fi
     
-    # Check for Boost using dpkg (more reliable)
-    if ! dpkg -l | grep -q "libboost-all-dev"; then
-        print_warning "Boost is not installed"
+    # Check for Boost headers
+    if [ ! -f "/usr/include/boost/version.hpp" ]; then
+        print_warning "Boost headers are not installed"
         missing_deps=1
     else
         print_success "Boost found"
     fi
-    
-    # Check for GTest using dpkg
-    if ! dpkg -l | grep -q "libgtest-dev"; then
-        print_warning "GTest is not installed"
-        missing_deps=1
-    else
-        print_success "GTest found"
+
+    # Check unit test dependencies only when tests are requested
+    if [ "${require_tests}" -eq 1 ]; then
+        if [ ! -f "/usr/include/gtest/gtest.h" ]; then
+            print_warning "GTest headers are not installed"
+            missing_deps=1
+        else
+            print_success "GTest found"
+        fi
     fi
     
     if [ $missing_deps -eq 1 ]; then
@@ -123,7 +129,8 @@ check_dependencies() {
 
 # Build function for a specific configuration
 build_config() {
-    local config=$1  # "debug" or "release"
+    local config=$1        # "debug" or "release"
+    local enable_tests=${2:-OFF}
     local build_path="${BUILD_DIR}/${config}"
     
     print_info "========================================="
@@ -150,17 +157,15 @@ build_config() {
         -DCPU_ARCH="${CPU_ARCH}" \
         -DHERKUS_BUS_EXAMPLES=ON \
         -DHERKUS_BUS_BUILD_SHARED=ON \
+        -DHERKUS_BUS_TESTS="${enable_tests}" \
         -DCMAKE_CXX_FLAGS_DEBUG="${CFLAGS_DEBUG}" \
         -DCMAKE_CXX_FLAGS_RELEASE="${CFLAGS_RELEASE}" \
-        "${PROJECT_ROOT}" > /dev/null 2>&1
+        "${PROJECT_ROOT}"
     
     if [ $? -ne 0 ]; then
         print_error "CMake configuration failed for ${config}"
         return 1
     fi
-    
-    # Clean previous build artifacts
-    make clean > /dev/null 2>&1 || true
     
     # Build and measure time
     print_info "Compiling ${config^^}..."
@@ -168,7 +173,7 @@ build_config() {
     
     # Capture build output to analyze warnings
     local build_log="${build_path}/build.log"
-    make -j$(($(nproc) * 2)) 2>&1 | tee "${build_log}"
+    cmake --build . --parallel "${PARALLEL_JOBS}" 2>&1 | tee "${build_log}"
     
     if [ ${PIPESTATUS[0]} -ne 0 ]; then
         print_error "Build failed for ${config}"
@@ -193,7 +198,7 @@ build_config() {
     # Count warnings
     local warning_count=0
     if [ -f "${build_log}" ]; then
-        warning_count=$(grep -c "warning:" "${build_log}" || echo "0")
+        warning_count=$(grep -c "warning:" "${build_log}" || true)
     fi
     
     # Store statistics
@@ -222,7 +227,7 @@ display_summary() {
     printf "%-15s + %-12s + %-12s + %-10s\n" "===============" "============" "============" "=========="
     
     # Debug row
-    if [ -n "${BUILD_STATS[debug_time]}" ]; then
+    if [ -n "${BUILD_STATS[debug_time]:-}" ]; then
         printf "%-15s | %-12s | %-12s | %-10s\n" "Debug" \
             "${BUILD_STATS[debug_time]}" \
             "${BUILD_STATS[debug_size]}" \
@@ -230,7 +235,7 @@ display_summary() {
     fi
     
     # Release row
-    if [ -n "${BUILD_STATS[release_time]}" ]; then
+    if [ -n "${BUILD_STATS[release_time]:-}" ]; then
         printf "%-15s | %-12s | %-12s | %-10s\n" "Release" \
             "${BUILD_STATS[release_time]}" \
             "${BUILD_STATS[release_size]}" \
@@ -242,40 +247,17 @@ display_summary() {
 
 # Build with tests enabled
 build_with_tests() {
-    local build_path="${BUILD_DIR}/release"
-    
     print_info "========================================="
     print_info "Building Release with Tests..."
     print_info "========================================="
-    
-    mkdir -p "${build_path}"
+
+    if ! build_config "release" "ON"; then
+        print_error "Release build with tests failed"
+        return 1
+    fi
+
+    local build_path="${BUILD_DIR}/release"
     cd "${build_path}"
-    
-    # Configure CMake with tests enabled
-    print_info "Configuring CMake with tests..."
-    cmake \
-        -DCMAKE_BUILD_TYPE="Release" \
-        -DCPU_ARCH="${CPU_ARCH}" \
-        -DHERKUS_BUS_EXAMPLES=ON \
-        -DHERKUS_BUS_BUILD_SHARED=ON \
-        -DHERKUS_BUS_TESTS=ON \
-        -DCMAKE_CXX_FLAGS_DEBUG="${CFLAGS_DEBUG}" \
-        -DCMAKE_CXX_FLAGS_RELEASE="${CFLAGS_RELEASE}" \
-        "${PROJECT_ROOT}" > /dev/null 2>&1
-    
-    if [ $? -ne 0 ]; then
-        print_error "CMake configuration failed with tests"
-        return 1
-    fi
-    
-    # Build
-    print_info "Building with tests..."
-    make -j$(($(nproc) * 2)) 2>&1
-    
-    if [ $? -ne 0 ]; then
-        print_error "Build with tests failed"
-        return 1
-    fi
     
     # Run tests
     print_info "========================================="
@@ -309,19 +291,18 @@ main() {
     
     case "${command}" in
         debug)
-            check_dependencies
-            build_config "debug"
+            check_dependencies 0
+            build_config "debug" "OFF"
             display_summary
             ;;
         release)
-            check_dependencies
-            build_config "release"
+            check_dependencies 0
+            build_config "release" "OFF"
             display_summary
             ;;
         all)
-            check_dependencies
-            build_config "debug"
-            build_config "release"
+            check_dependencies 1
+            build_config "debug" "OFF"
             
             # Build and run tests
             if ! build_with_tests; then
