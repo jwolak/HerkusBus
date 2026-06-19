@@ -30,46 +30,65 @@
  *
  */
 
-#include "HerkusBus.h"
+#pragma once
 
+#include <atomic>
 #include <boost/interprocess/allocators/allocator.hpp>
 #include <boost/interprocess/containers/deque.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/interprocess/sync/interprocess_condition.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <chrono>
+#include <condition_variable>
+#include <functional>
 #include <memory>
+#include <mutex>
+#include <queue>
+#include <string>
 #include <thread>
+#include <unordered_map>
+#include <vector>
 
 #include "IHerkusBus.h"
+#include "nlohmann/json.hpp"
+#include "spdlog/sinks/rotating_file_sink.h"
 
 namespace Herkus {
+using json = nlohmann::json;
+using subscriber_callback = std::function<void(const std::string& topic, const json& msg)>;
 
-namespace {
-std::unique_ptr<IHerkusBus> g_global_bus_instance;
-
-class DefaultBusAdapter : public IHerkusBus {
- public:
-  void Publish(const std::string& topic, const json& message_payload) override { HerkusBus::getInstance().Publish(topic, message_payload); }
-  void Subscribe(const std::string& topic, subscriber_callback sub_callback) override { HerkusBus::getInstance().Subscribe(topic, std::move(sub_callback)); }
+struct Message {
+  std::string topic;
+  std::string payload;
 };
-}  // namespace
 
-HerkusBus& HerkusBus::getInstance() {
-  static HerkusBus instance;
-  return instance;
-}
+using shared_mem_allocator = boost::interprocess::allocator<Message, boost::interprocess::managed_shared_memory::segment_manager>;
+using shared_mem_message_deque = boost::interprocess::deque<Message, shared_mem_allocator>;
 
-// for testing purposes only
-HerkusBus::HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl) : herkus_bus_impl_(std::move(herkus_bus_impl)) {}
+class HerkusBusImpl : public IHerkusBus {
+ public:
+  HerkusBusImpl();
+  ~HerkusBusImpl();
 
-HerkusBus::HerkusBus() : herkus_bus_impl_(std::make_unique<HerkusBusImpl>()) {}
+  void Publish(const std::string& topic, const json& message_payload);
+  void Subscribe(const std::string& topic, subscriber_callback sub_callback);
 
-void HerkusBus::Subscribe(const std::string& topic, subscriber_callback sub_callback) {
-  herkus_bus_impl_->Subscribe(topic, std::move(sub_callback));
-}
+ private:
+  void EnqueueTask(std::function<void()> task);
 
-void HerkusBus::Publish(const std::string& topic, const json& msg) {
-  herkus_bus_impl_->Publish(topic, msg);
-}
+  boost::interprocess::managed_shared_memory shared_memory_segment_;
+  shared_mem_message_deque* message_queue_;
+  boost::interprocess::interprocess_mutex* ipc_mtx_;
+  boost::interprocess::interprocess_condition* ipc_condition_variable_;
+  std::thread bus_event_loop_thread_;
+  std::atomic<bool> stop_listener_event_loop_;
+  std::vector<std::thread> worker_threads_;
+  std::queue<std::function<void()>> task_queue_;
+  std::mutex task_queue_mutex_;
+  std::condition_variable task_queue_cv_;
+  std::atomic<bool> stop_worker_threads_;
+  std::unordered_map<std::string, std::vector<subscriber_callback>> subscribers_callbacks_;
+  std::mutex subscribers_mutex_;
+};
+
 }  // namespace Herkus

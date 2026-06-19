@@ -1,10 +1,3 @@
-/*
- * HerkusBusTests.cpp
- *
- *  Created on: 2025
- *      Author: Build System
- */
-
 /*-
  * BSD 3-Clause License
  *
@@ -38,10 +31,11 @@
  */
 
 #include <gtest/gtest.h>
+
+#include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
-#include <chrono>
 
 #include "HerkusBus.h"
 
@@ -63,7 +57,7 @@ class HerkusBusTest : public ::testing::Test {
 TEST_F(HerkusBusTest, GetInstanceReturnsSingletonInstance) {
   HerkusBus& instance1 = HerkusBus::getInstance();
   HerkusBus& instance2 = HerkusBus::getInstance();
-  
+
   // Both references should point to the same object
   EXPECT_EQ(&instance1, &instance2);
 }
@@ -84,11 +78,9 @@ TEST_F(HerkusBusTest, PublishWithValidTopicAndMessage) {
   json message;
   message["data"] = "test";
   message["timestamp"] = 12345;
-  
+
   // Should not throw
-  EXPECT_NO_THROW({
-    bus.Publish("test/topic", message);
-  });
+  EXPECT_NO_THROW({ bus.Publish("test/topic", message); });
 }
 
 // Test: Publish with empty topic
@@ -96,37 +88,29 @@ TEST_F(HerkusBusTest, PublishWithEmptyTopic) {
   HerkusBus& bus = HerkusBus::getInstance();
   json message;
   message["data"] = "test";
-  
+
   // Should not throw even with empty topic
-  EXPECT_NO_THROW({
-    bus.Publish("", message);
-  });
+  EXPECT_NO_THROW({ bus.Publish("", message); });
 }
 
 // Test: Publish with empty message
 TEST_F(HerkusBusTest, PublishWithEmptyMessage) {
   HerkusBus& bus = HerkusBus::getInstance();
   json message = json::object();
-  
+
   // Should not throw
-  EXPECT_NO_THROW({
-    bus.Publish("test/topic", message);
-  });
+  EXPECT_NO_THROW({ bus.Publish("test/topic", message); });
 }
 
 // Test: Subscribe with valid callback
 TEST_F(HerkusBusTest, SubscribeWithValidCallback) {
   HerkusBus& bus = HerkusBus::getInstance();
   bool callback_called = false;
-  
-  subscriber_callback callback = [&callback_called](const std::string& topic, const json& msg) {
-    callback_called = true;
-  };
-  
+
+  subscriber_callback callback = [&callback_called](const std::string& topic, const json& msg) { callback_called = true; };
+
   // Should not throw
-  EXPECT_NO_THROW({
-    bus.Subscribe("test/topic", callback);
-  });
+  EXPECT_NO_THROW({ bus.Subscribe("test/topic", callback); });
 }
 
 // Test: Subscribe and publish
@@ -135,23 +119,23 @@ TEST_F(HerkusBusTest, SubscribeAndPublish) {
   std::string received_topic;
   json received_message;
   bool callback_called = false;
-  
+
   subscriber_callback callback = [&](const std::string& topic, const json& msg) {
     received_topic = topic;
     received_message = msg;
     callback_called = true;
   };
-  
+
   bus.Subscribe("test/event", callback);
-  
+
   json message;
   message["value"] = 42;
-  
+
   bus.Publish("test/event", message);
-  
+
   // Give some time for message delivery (if async)
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  
+
   // At least the publish should not throw
   EXPECT_NO_THROW({});
 }
@@ -161,15 +145,11 @@ TEST_F(HerkusBusTest, MultipleSubscriptionsToTopics) {
   HerkusBus& bus = HerkusBus::getInstance();
   int topic1_count = 0;
   int topic2_count = 0;
-  
-  subscriber_callback callback1 = [&topic1_count](const std::string& topic, const json& msg) {
-    topic1_count++;
-  };
-  
-  subscriber_callback callback2 = [&topic2_count](const std::string& topic, const json& msg) {
-    topic2_count++;
-  };
-  
+
+  subscriber_callback callback1 = [&topic1_count](const std::string& topic, const json& msg) { topic1_count++; };
+
+  subscriber_callback callback2 = [&topic2_count](const std::string& topic, const json& msg) { topic2_count++; };
+
   EXPECT_NO_THROW({
     bus.Subscribe("topic1", callback1);
     bus.Subscribe("topic2", callback2);
@@ -179,16 +159,14 @@ TEST_F(HerkusBusTest, MultipleSubscriptionsToTopics) {
 // Test: Publish complex JSON message
 TEST_F(HerkusBusTest, PublishComplexJsonMessage) {
   HerkusBus& bus = HerkusBus::getInstance();
-  
+
   json complex_message = json::object();
   complex_message["user"] = "test_user";
   complex_message["data"] = json::object();
   complex_message["data"]["value"] = 123;
   complex_message["data"]["array"] = json::array({1, 2, 3});
-  
-  EXPECT_NO_THROW({
-    bus.Publish("test/complex", complex_message);
-  });
+
+  EXPECT_NO_THROW({ bus.Publish("test/complex", complex_message); });
 }
 
 // Test: Publish to hierarchical topics
@@ -196,19 +174,15 @@ TEST_F(HerkusBusTest, PublishToHierarchicalTopics) {
   HerkusBus& bus = HerkusBus::getInstance();
   json message;
   message["test"] = "data";
-  
-  EXPECT_NO_THROW({
-    bus.Publish("root/branch/leaf", message);
-  });
+
+  EXPECT_NO_THROW({ bus.Publish("root/branch/leaf", message); });
 }
 
 // Test: Subscribe to root topic
 TEST_F(HerkusBusTest, SubscribeToRootTopic) {
   HerkusBus& bus = HerkusBus::getInstance();
-  
+
   subscriber_callback callback = [](const std::string& topic, const json& msg) {};
-  
-  EXPECT_NO_THROW({
-    bus.Subscribe("root", callback);
-  });
+
+  EXPECT_NO_THROW({ bus.Subscribe("root", callback); });
 }
