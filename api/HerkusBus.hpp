@@ -30,46 +30,9 @@
  *
  */
 
-#include "HerkusBus.h"
+#pragma once
 
-#include <boost/interprocess/allocators/allocator.hpp>
-#include <boost/interprocess/containers/deque.hpp>
-#include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/sync/interprocess_condition.hpp>
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
-#include <chrono>
-#include <memory>
-#include <thread>
-
-#include "IHerkusBus.h"
-
-namespace Herkus {
-
-namespace {
-std::unique_ptr<IHerkusBus> g_global_bus_instance;
-
-class DefaultBusAdapter : public IHerkusBus {
- public:
-  void Publish(const std::string& topic, const json& message_payload) override { HerkusBus::getInstance().Publish(topic, message_payload); }
-  void Subscribe(const std::string& topic, subscriber_callback sub_callback) override { HerkusBus::getInstance().Subscribe(topic, std::move(sub_callback)); }
-};
-}  // namespace
-
-HerkusBus& HerkusBus::getInstance() {
-  static HerkusBus instance;
-  return instance;
-}
-
-// for testing purposes only
-HerkusBus::HerkusBus(std::unique_ptr<HerkusBusImpl> herkus_bus_impl) : herkus_bus_impl_(std::move(herkus_bus_impl)) {}
-
-HerkusBus::HerkusBus() : herkus_bus_impl_(std::make_unique<HerkusBusImpl>()) {}
-
-void HerkusBus::Subscribe(const std::string& topic, subscriber_callback sub_callback) {
-  herkus_bus_impl_->Subscribe(topic, std::move(sub_callback));
-}
-
-void HerkusBus::Publish(const std::string& topic, const json& msg) {
-  herkus_bus_impl_->Publish(topic, msg);
-}
-}  // namespace Herkus
+/* Public umbrella header for application code. */
+#include "../include/HerkusBus.h"
+#include "../include/HerkusBusImpl.h"
+#include "../include/IHerkusBus.h"

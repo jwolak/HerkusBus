@@ -1,10 +1,3 @@
-/*
- * HerkusBusImpl.h
- *
- *  Created on: 2025
- *      Author: Janusz Wolak
- */
-
 /*-
  * BSD 3-Clause License
  *
@@ -36,66 +29,23 @@
  * SUCH DAMAGE.
  *
  */
-
 #pragma once
 
-#include <atomic>
-#include <boost/interprocess/allocators/allocator.hpp>
-#include <boost/interprocess/containers/deque.hpp>
-#include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/sync/interprocess_condition.hpp>
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
-#include <chrono>
-#include <condition_variable>
 #include <functional>
-#include <memory>
-#include <mutex>
-#include <queue>
 #include <string>
-#include <thread>
-#include <unordered_map>
-#include <vector>
 
-#include "IHerkusBus.h"
 #include "nlohmann/json.hpp"
-#include "spdlog/sinks/rotating_file_sink.h"
 
 namespace Herkus {
 using json = nlohmann::json;
 using subscriber_callback = std::function<void(const std::string& topic, const json& msg)>;
 
-struct Message {
-  std::string topic;
-  std::string payload;
-};
-
-using shared_mem_allocator = boost::interprocess::allocator<Message, boost::interprocess::managed_shared_memory::segment_manager>;
-using shared_mem_message_deque = boost::interprocess::deque<Message, shared_mem_allocator>;
-
-class HerkusBusImpl : public IHerkusBus {
+class IHerkusBus {
  public:
-  HerkusBusImpl();
-  ~HerkusBusImpl();
+  virtual ~IHerkusBus() = default;
 
-  void Publish(const std::string& topic, const json& message_payload);
-  void Subscribe(const std::string& topic, subscriber_callback sub_callback);
-
- private:
-  void EnqueueTask(std::function<void()> task);
-
-  boost::interprocess::managed_shared_memory shared_memory_segment_;
-  shared_mem_message_deque* message_queue_;
-  boost::interprocess::interprocess_mutex* ipc_mtx_;
-  boost::interprocess::interprocess_condition* ipc_condition_variable_;
-  std::thread bus_event_loop_thread_;
-  std::atomic<bool> stop_listener_event_loop_;
-  std::vector<std::thread> worker_threads_;
-  std::queue<std::function<void()>> task_queue_;
-  std::mutex task_queue_mutex_;
-  std::condition_variable task_queue_cv_;
-  std::atomic<bool> stop_worker_threads_;
-  std::unordered_map<std::string, std::vector<subscriber_callback>> subscribers_callbacks_;
-  std::mutex subscribers_mutex_;
+  virtual void Publish(const std::string& topic, const json& message_payload) = 0;
+  virtual void Subscribe(const std::string& topic, subscriber_callback sub_callback) = 0;
 };
 
 }  // namespace Herkus
